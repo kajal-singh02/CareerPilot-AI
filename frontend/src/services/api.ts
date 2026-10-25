@@ -3,7 +3,11 @@ import {
   InterviewSession, JobApplication, Conversation, DashboardStats
 } from '../types';
 
-const API_BASE = '/api/v1';
+const ENV_API_BASE = import.meta.env.VITE_API_BASE_URL;
+const API_BASE = ENV_API_BASE 
+  ? (ENV_API_BASE.endsWith('/') ? ENV_API_BASE.slice(0, -1) : ENV_API_BASE)
+  : '/api/v1';
+
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('careerpilot_token');
