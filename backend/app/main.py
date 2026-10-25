@@ -51,6 +51,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Root endpoint
+@app.get("/")
+def root():
+    return {
+        "message": "CareerPilot AI Backend is running successfully!",
+        "docs": f"{settings.API_V1_STR}/docs",
+        "health": "/health"
+    }
+
 # Health endpoint
 @app.get("/health")
 def health_check():
