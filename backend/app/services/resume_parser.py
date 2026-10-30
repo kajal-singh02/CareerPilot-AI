@@ -3,7 +3,23 @@ import re
 from typing import Dict, Any
 
 def extract_text_from_pdf(file_path: str) -> str:
-    """Extracts text from PDF using PyMuPDF (fitz)."""
+    """Extracts text from PDF using pypdf or PyMuPDF (fitz)."""
+    # Try pypdf first (pure Python, lightweight, serverless friendly)
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(file_path)
+        text_parts = []
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text_parts.append(page_text)
+        text = "\n".join(text_parts).strip()
+        if text:
+            return text
+    except Exception:
+        pass
+
+    # Fallback to PyMuPDF if available
     try:
         import fitz
         doc = fitz.open(file_path)
