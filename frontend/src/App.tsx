@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { ClerkProvider } from '@clerk/clerk-react';
-import { AuthProvider } from './context/AuthContext';
+import { ClerkProvider, AuthenticateWithRedirectCallback, useUser } from '@clerk/clerk-react';
+import { AuthProvider, useAuth as useAppAuth } from './context/AuthContext';
 import { Layout } from './components/layout/Layout';
+import { api } from './services/api';
 
 // Pages
 import { Landing } from './pages/Landing';
@@ -21,6 +22,44 @@ import { CareerChatbot } from './pages/CareerChatbot';
 import { SettingsPage } from './pages/Settings';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_c21pbGluZy1jcmFuZS0yMzUuY2xlcmsuYWNjb3VudHMuZGV2JA";
+
+/**
+ * Handles SSO/OAuth callbacks (e.g. Google Sign-In redirect)
+ * and syncs session with backend to obtain JWT access token
+ */
+const SSOCallbackHandler: React.FC = () => {
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { login } = useAppAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleSync = async () => {
+      if (isLoaded && isSignedIn && user) {
+        try {
+          const email = user.primaryEmailAddress?.emailAddress || `${user.id}@clerk.user`;
+          const fullName = user.fullName || user.firstName || 'Candidate';
+          const res = await api.clerkSync(user.id, email, fullName);
+          await login(res.access_token);
+          navigate('/dashboard', { replace: true });
+        } catch (err) {
+          console.error('SSO sync error:', err);
+          navigate('/login', { replace: true });
+        }
+      }
+    };
+    handleSync();
+  }, [isLoaded, isSignedIn, user, login, navigate]);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
+      <AuthenticateWithRedirectCallback signUpForceRedirectUrl="/dashboard" signInForceRedirectUrl="/dashboard" />
+      <div className="mt-4 flex items-center space-x-3 text-sm text-zinc-400 font-mono">
+        <div className="w-5 h-5 border-2 border-[#ef233c] border-t-transparent rounded-full animate-spin"></div>
+        <span>Authenticating with CareerPilot AI...</span>
+      </div>
+    </div>
+  );
+};
 
 const ClerkWithRouter: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
@@ -45,6 +84,7 @@ export const App: React.FC = () => {
             <Route path="/" element={<Landing />} />
             <Route path="/login/*" element={<Login />} />
             <Route path="/register/*" element={<Register />} />
+            <Route path="/sso-callback/*" element={<SSOCallbackHandler />} />
 
           {/* Authenticated Application Shell */}
           <Route element={<Layout />}>
