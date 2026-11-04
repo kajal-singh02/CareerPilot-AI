@@ -10,6 +10,8 @@ if db_url.startswith("postgres://"):
 connect_args = {}
 if db_url.startswith("sqlite"):
     connect_args["check_same_thread"] = False
+elif "supabase.co" in db_url or "postgresql" in db_url:
+    connect_args["sslmode"] = "require"
 
 engine = create_engine(
     db_url,

@@ -18,18 +18,20 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database tables
-    logger.info("Initializing database tables...")
-    Base.metadata.create_all(bind=engine)
-    
-    # Run seed data
-    db = SessionLocal()
+    # Initialize database tables and seed non-blocking
     try:
-        seed_database(db)
+        logger.info("Initializing database tables...")
+        Base.metadata.create_all(bind=engine)
+        
+        db = SessionLocal()
+        try:
+            seed_database(db)
+        except Exception as e:
+            logger.warning(f"Error seeding database: {e}")
+        finally:
+            db.close()
     except Exception as e:
-        logger.warning(f"Error seeding database: {e}")
-    finally:
-        db.close()
+        logger.error(f"Lifespan DB setup warning (continuing anyway): {e}")
     
     yield
     logger.info("CareerPilot AI Backend shutting down.")

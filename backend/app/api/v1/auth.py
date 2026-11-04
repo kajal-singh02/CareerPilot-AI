@@ -63,29 +63,36 @@ class ClerkSyncRequest(BaseModel):
 
 @router.post("/clerk-sync", response_model=Token)
 def clerk_sync(req: ClerkSyncRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == req.email).first()
-    if not user:
-        user = User(
-            email=req.email,
-            full_name=req.full_name or req.email.split("@")[0].title(),
-            hashed_password=get_password_hash(f"clerk_{req.clerk_id}"),
-            is_active=True
-        )
-        db.add(user)
-        db.flush()
+    try:
+        user = db.query(User).filter(User.email == req.email).first()
+        if not user:
+            user = User(
+                email=req.email,
+                full_name=req.full_name or req.email.split("@")[0].title(),
+                hashed_password=get_password_hash(f"clerk_{req.clerk_id}"),
+                is_active=True
+            )
+            db.add(user)
+            db.flush()
 
-        profile = UserProfile(
-            user_id=user.id,
-            preferred_role="Full Stack Developer",
-            existing_skills=["JavaScript", "Python", "Git", "SQL"]
-        )
-        db.add(profile)
-        db.commit()
-    elif not user.is_active:
-        raise HTTPException(status_code=400, detail="Account is disabled.")
+            profile = UserProfile(
+                user_id=user.id,
+                preferred_role="Full Stack Developer",
+                existing_skills=["JavaScript", "Python", "Git", "SQL"]
+            )
+            db.add(profile)
+            db.commit()
+        elif not user.is_active:
+            raise HTTPException(status_code=400, detail="Account is disabled.")
 
-    token = create_access_token(user.id)
-    return {"access_token": token, "token_type": "bearer"}
+        token = create_access_token(user.id)
+        return {"access_token": token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database synchronization failed: {str(e)}")
 
 
 @router.get("/me", response_model=UserOut)
