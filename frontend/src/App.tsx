@@ -44,7 +44,22 @@ const AuthCallbackHandler: React.FC = () => {
           await login(res.access_token);
           navigate('/dashboard', { replace: true });
         } else {
-          navigate('/login', { replace: true });
+          // If hash contains tokens, wait for onAuthStateChange
+          const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session && session.user) {
+              const user = session.user;
+              const email = user.email || `${user.id}@supabase.user`;
+              const fullName = user.user_metadata?.full_name || email.split('@')[0];
+              const res = await api.supabaseSync(user.id, email, fullName);
+              await login(res.access_token);
+              navigate('/dashboard', { replace: true });
+            }
+          });
+          
+          // Fallback timeout
+          setTimeout(() => {
+            authListener.subscription.unsubscribe();
+          }, 3000);
         }
       } catch (err) {
         console.error('Auth callback failed:', err);
@@ -64,39 +79,66 @@ const AuthCallbackHandler: React.FC = () => {
 };
 
 export const App: React.FC = () => {
+  const { login } = useAppAuth();
+  const navigate = useNavigate();
+
+  // Listen globally for hash tokens (e.g. if Supabase redirects to /#access_token=...)
+  useEffect(() => {
+    if (window.location.hash.includes('access_token')) {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (session && session.user) {
+          try {
+            const user = session.user;
+            const email = user.email || `${user.id}@supabase.user`;
+            const fullName = user.user_metadata?.full_name || email.split('@')[0];
+            const res = await api.supabaseSync(user.id, email, fullName);
+            await login(res.access_token);
+            navigate('/dashboard', { replace: true });
+          } catch (e) {
+            console.error('Global auth session sync error:', e);
+          }
+        }
+      });
+    }
+  }, [login, navigate]);
+
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/auth-callback" element={<AuthCallbackHandler />} />
-          {/* Legacy fallback */}
-          <Route path="/sso-callback/*" element={<Navigate to="/auth-callback" replace />} />
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/auth-callback" element={<AuthCallbackHandler />} />
+      {/* Legacy fallback */}
+      <Route path="/sso-callback/*" element={<Navigate to="/auth-callback" replace />} />
 
-          {/* Authenticated Application Shell */}
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/resumes" element={<ResumeLibrary />} />
-            <Route path="/resumes/:resumeId/analysis" element={<ResumeAnalysisPage />} />
-            <Route path="/job-matcher" element={<JobMatcher />} />
-            <Route path="/jobs" element={<RecommendedJobs />} />
-            <Route path="/roadmap" element={<SkillGapRoadmap />} />
-            <Route path="/resume-builder" element={<ResumeBuilder />} />
-            <Route path="/interviews" element={<MockInterview />} />
-            <Route path="/applications" element={<ApplicationTracker />} />
-            <Route path="/chat" element={<CareerChatbot />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Route>
+      {/* Authenticated Application Shell */}
+      <Route element={<Layout />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/resumes" element={<ResumeLibrary />} />
+        <Route path="/resumes/:resumeId/analysis" element={<ResumeAnalysisPage />} />
+        <Route path="/job-matcher" element={<JobMatcher />} />
+        <Route path="/jobs" element={<RecommendedJobs />} />
+        <Route path="/roadmap" element={<SkillGapRoadmap />} />
+        <Route path="/resume-builder" element={<ResumeBuilder />} />
+        <Route path="/interviews" element={<MockInterview />} />
+        <Route path="/applications" element={<ApplicationTracker />} />
+        <Route path="/chat" element={<CareerChatbot />} />
+        <Route path="/settings" element={<SettingsPage />} />
+      </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 
-export default App;
+export const AppWithRouter: React.FC = () => (
+  <BrowserRouter>
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  </BrowserRouter>
+);
+
+export default AppWithRouter;
