@@ -25,6 +25,7 @@ export const Login: React.FC = () => {
       if (isLoaded && isSignedIn && clerkUser && !isSyncingRef.current) {
         isSyncingRef.current = true;
         setIsSyncing(true);
+        setError(null);
         try {
           const emailAddress = clerkUser.primaryEmailAddress?.emailAddress || `${clerkUser.id}@clerk.user`;
           const fullName = clerkUser.fullName || clerkUser.firstName || 'Candidate';
@@ -33,7 +34,7 @@ export const Login: React.FC = () => {
           navigate('/dashboard');
         } catch (err: any) {
           console.error('Clerk backend sync error:', err);
-          setError(err.message || 'Failed to sync authentication session with backend.');
+          setError(`Backend Sync Error: ${err.message || 'Failed to sync authentication session with backend.'}`);
           isSyncingRef.current = false;
           setIsSyncing(false);
         }
@@ -144,6 +145,13 @@ export const Login: React.FC = () => {
                 <div className="mb-4 p-3 rounded-xl bg-[#ef233c]/10 border border-[#ef233c]/30 text-[#ef233c] text-xs flex items-center justify-center space-x-2 font-mono">
                   <div className="w-4 h-4 border-2 border-[#ef233c] border-t-transparent rounded-full animate-spin"></div>
                   <span>Synchronizing session with CareerPilot AI...</span>
+                </div>
+              )}
+
+              {error && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start space-x-2 font-mono">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                  <span>{error}</span>
                 </div>
               )}
 
