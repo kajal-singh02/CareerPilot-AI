@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { ClerkProvider, AuthenticateWithRedirectCallback, useUser } from '@clerk/clerk-react';
 import { AuthProvider, useAuth as useAppAuth } from './context/AuthContext';
 import { Layout } from './components/layout/Layout';
+import { supabase } from './services/supabase';
 import { api } from './services/api';
 
 // Pages
@@ -21,70 +21,60 @@ import { ApplicationTracker } from './pages/ApplicationTracker';
 import { CareerChatbot } from './pages/CareerChatbot';
 import { SettingsPage } from './pages/Settings';
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_c21pbGluZy1jcmFuZS0yMzUuY2xlcmsuYWNjb3VudHMuZGV2JA";
-
 /**
- * Handles SSO/OAuth callbacks (e.g. Google Sign-In redirect)
- * and syncs session with backend to obtain JWT access token
+ * Handles Supabase OAuth redirect (Google Sign-In)
  */
-const SSOCallbackHandler: React.FC = () => {
-  const { isLoaded, isSignedIn, user } = useUser();
+const AuthCallbackHandler: React.FC = () => {
   const { login } = useAppAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handleSync = async () => {
-      if (isLoaded && isSignedIn && user) {
-        try {
-          const email = user.primaryEmailAddress?.emailAddress || `${user.id}@clerk.user`;
-          const fullName = user.fullName || user.firstName || 'Candidate';
-          const res = await api.clerkSync(user.id, email, fullName);
+    const handleAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (session && session.user) {
+          const user = session.user;
+          const email = user.email || `${user.id}@supabase.user`;
+          const fullName = user.user_metadata?.full_name || email.split('@')[0];
+          
+          // Sync with CareerPilot Backend
+          const res = await api.supabaseSync(user.id, email, fullName);
           await login(res.access_token);
           navigate('/dashboard', { replace: true });
-        } catch (err) {
-          console.error('SSO sync error:', err);
+        } else {
           navigate('/login', { replace: true });
         }
+      } catch (err) {
+        console.error('Auth callback failed:', err);
+        navigate('/login', { replace: true });
       }
     };
-    handleSync();
-  }, [isLoaded, isSignedIn, user, login, navigate]);
+
+    handleAuth();
+  }, [login, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
-      <AuthenticateWithRedirectCallback signUpForceRedirectUrl="/dashboard" signInForceRedirectUrl="/dashboard" />
-      <div className="mt-4 flex items-center space-x-3 text-sm text-zinc-400 font-mono">
-        <div className="w-5 h-5 border-2 border-[#ef233c] border-t-transparent rounded-full animate-spin"></div>
-        <span>Authenticating with CareerPilot AI...</span>
-      </div>
+      <div className="w-10 h-10 border-4 border-[#ef233c] border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-sm font-mono text-zinc-400">Authenticating with CareerPilot AI...</p>
     </div>
-  );
-};
-
-const ClerkWithRouter: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const navigate = useNavigate();
-  return (
-    <ClerkProvider
-      publishableKey={PUBLISHABLE_KEY}
-      routerPush={(to) => navigate(to)}
-      routerReplace={(to) => navigate(to, { replace: true })}
-    >
-      {children}
-    </ClerkProvider>
   );
 };
 
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <ClerkWithRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/login/*" element={<Login />} />
-            <Route path="/register/*" element={<Register />} />
-            <Route path="/sso-callback/*" element={<SSOCallbackHandler />} />
+      <AuthProvider>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/auth-callback" element={<AuthCallbackHandler />} />
+          {/* Legacy fallback */}
+          <Route path="/sso-callback/*" element={<Navigate to="/auth-callback" replace />} />
 
           {/* Authenticated Application Shell */}
           <Route element={<Layout />}>
@@ -104,8 +94,7 @@ export const App: React.FC = () => {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        </AuthProvider>
-      </ClerkWithRouter>
+      </AuthProvider>
     </BrowserRouter>
   );
 };

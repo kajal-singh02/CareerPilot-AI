@@ -48,13 +48,17 @@ export const api = {
     return handleResponse(res);
   },
 
-  async clerkSync(clerk_id: string, email: string, full_name?: string): Promise<{ access_token: string }> {
-    const res = await fetch(`${API_BASE}/auth/clerk-sync`, {
+  async supabaseSync(supabase_uid: string, email: string, full_name?: string): Promise<{ access_token: string }> {
+    const res = await fetch(`${API_BASE}/auth/supabase-sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clerk_id, email, full_name }),
+      body: JSON.stringify({ supabase_uid, email, full_name }),
     });
     return handleResponse(res);
+  },
+
+  async clerkSync(clerk_id: string, email: string, full_name?: string): Promise<{ access_token: string }> {
+    return this.supabaseSync(clerk_id, email, full_name);
   },
 
   async getMe(): Promise<User> {

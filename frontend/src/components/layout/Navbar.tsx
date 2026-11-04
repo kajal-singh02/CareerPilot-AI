@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useClerk } from '@clerk/clerk-react';
+import { supabase } from '../../services/supabase';
 import { LogOut, Bot } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -10,12 +10,11 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ pageTitle = 'Dashboard' }) => {
   const { user, logout } = useAuth();
-  const { signOut } = useClerk();
 
   const handleLogout = async () => {
     logout();
     try {
-      await signOut();
+      await supabase.auth.signOut();
     } catch {
       // ignore
     }

@@ -56,20 +56,25 @@ def login(login_in: UserLogin, db: Session = Depends(get_db)):
 from typing import Optional
 from pydantic import BaseModel
 
+class SupabaseSyncRequest(BaseModel):
+    supabase_uid: str
+    email: str
+    full_name: Optional[str] = None
+
 class ClerkSyncRequest(BaseModel):
     clerk_id: str
     email: str
     full_name: Optional[str] = None
 
-@router.post("/clerk-sync", response_model=Token)
-def clerk_sync(req: ClerkSyncRequest, db: Session = Depends(get_db)):
+@router.post("/supabase-sync", response_model=Token)
+def supabase_sync(req: SupabaseSyncRequest, db: Session = Depends(get_db)):
     try:
         user = db.query(User).filter(User.email == req.email).first()
         if not user:
             user = User(
                 email=req.email,
                 full_name=req.full_name or req.email.split("@")[0].title(),
-                hashed_password=get_password_hash(f"clerk_{req.clerk_id}"),
+                hashed_password=get_password_hash(f"supabase_{req.supabase_uid}"),
                 is_active=True
             )
             db.add(user)
@@ -93,6 +98,10 @@ def clerk_sync(req: ClerkSyncRequest, db: Session = Depends(get_db)):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Database synchronization failed: {str(e)}")
+
+@router.post("/clerk-sync", response_model=Token)
+def clerk_sync(req: ClerkSyncRequest, db: Session = Depends(get_db)):
+    return supabase_sync(SupabaseSyncRequest(supabase_uid=req.clerk_id, email=req.email, full_name=req.full_name), db)
 
 
 @router.get("/me", response_model=UserOut)
