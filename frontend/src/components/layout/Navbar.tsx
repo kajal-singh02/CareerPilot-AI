@@ -1,6 +1,5 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../services/supabase';
 import { LogOut, Bot } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -11,13 +10,8 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ pageTitle = 'Dashboard' }) => {
   const { user, logout } = useAuth();
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     logout();
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // ignore
-    }
   };
 
   return (
@@ -47,14 +41,14 @@ export const Navbar: React.FC<NavbarProps> = ({ pageTitle = 'Dashboard' }) => {
             </div>
             <div className="hidden md:block text-left text-xs">
               <p className="font-bold text-white leading-none font-manrope">{user?.full_name || 'Candidate'}</p>
-              <p className="text-zinc-300 text-[11px] font-mono font-medium leading-tight mt-1">{user?.profile?.preferred_role || 'Developer'}</p>
+              <p className="text-zinc-500 text-[10px] truncate max-w-[120px] font-mono mt-0.5">{user?.email || 'user@domain.com'}</p>
             </div>
           </Link>
 
           <button
             onClick={handleLogout}
-            className="p-2 rounded-lg text-zinc-300 hover:text-[#ef233c] hover:bg-[#ef233c]/10 transition"
             title="Log Out"
+            className="p-2 text-zinc-400 hover:text-[#ef233c] hover:bg-white/5 rounded-lg transition-colors ml-2"
           >
             <LogOut className="w-4 h-4" />
           </button>
