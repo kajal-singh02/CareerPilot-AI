@@ -93,7 +93,7 @@ def seed_database(db: Session):
         demo_user = User(
             email="demo@careerpilot.ai",
             full_name="Alex Johnson",
-            hashed_password=get_password_hash("CareerPilot2026!"),
+            hashed_password=get_password_hash("demo123456"),
             is_active=True,
             is_superuser=False
         )

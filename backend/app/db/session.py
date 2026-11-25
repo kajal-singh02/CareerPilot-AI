@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 
-db_url = settings.DATABASE_URL
+db_url = settings.NEON_DATABASE_URL or settings.POSTGRES_URL or settings.DATABASE_URL
 # Ensure explicit psycopg2 dialect for SQLAlchemy in serverless/Vercel
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
